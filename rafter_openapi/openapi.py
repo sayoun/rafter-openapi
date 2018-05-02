@@ -34,11 +34,26 @@ def build_spec(app, loop):
             "email": getattr(app.config, 'API_CONTACT_EMAIL', None)
         },
         "license": {
-            "email": getattr(app.config, 'API_LICENSE_NAME', None),
+            "name": getattr(app.config, 'API_LICENSE_NAME', None),
             "url": getattr(app.config, 'API_LICENSE_URL', None)
         }
     }
     _spec['schemes'] = getattr(app.config, 'API_SCHEMES', ['http'])
+
+    host = getattr(app.config, 'API_HOST', None)
+    if host is not None:
+        _spec['host'] = host
+
+    base_path = getattr(app.config, 'API_BASEPATH', None)
+    if base_path is not None:
+        _spec['basePath'] = base_path
+
+    # --------------------------------------------------------------- #
+    # Authorization
+    # --------------------------------------------------------------- #
+
+    _spec['securityDefinitions'] = getattr(app.config, 'API_SECURITY_DEFINITIONS', None)  # noqa
+    _spec['security'] = getattr(app.config, 'API_SECURITY', None)
 
     # --------------------------------------------------------------- #
     # Blueprint Tags
@@ -103,10 +118,11 @@ def build_spec(app, loop):
             if _method == 'OPTIONS' or route_spec.exclude:
                 continue
 
-            consumes_content_types = route_spec.consumes_content_type or \
-                getattr(app.config, 'API_CONSUMES_CONTENT_TYPES', ['application/json'])
-            produces_content_types = route_spec.produces_content_type or \
-                getattr(app.config, 'API_PRODUCES_CONTENT_TYPES', ['application/json'])
+            api_consumes_content_types = getattr(app.config, 'API_CONSUMES_CONTENT_TYPES', ['application/json']) # noqa
+            consumes_content_types = route_spec.consumes_content_type or api_consumes_content_types # noqa
+
+            api_produces_content_types = getattr(app.config, 'API_PRODUCES_CONTENT_TYPES', ['application/json']) # noqa
+            produces_content_types = route_spec.produces_content_type or api_produces_content_types # noqa
 
             # Parameters - Path & Query String
             route_parameters = []
@@ -135,7 +151,7 @@ def build_spec(app, loop):
                         **spec,
                         'required': consumer.required,
                         'in': consumer.location,
-                        'name': consumer.field.name if hasattr(consumer.field, 'name') else 'body'
+                        'name': consumer.field.name if hasattr(consumer.field, 'name') else 'body'  # noqa
                     }
                     route_parameters.append(route_param)
 
@@ -143,6 +159,19 @@ def build_spec(app, loop):
                     route_param["schema"] = {'$ref': route_param['$ref']}
                     del route_param['$ref']
                     route_parameters.append(route_param)
+
+            responses = {
+                "200": {
+                    "schema": serialize_schema(route_spec.produces.field) if route_spec.produces else None,  # noqa
+                    "description": route_spec.produces.description if route_spec.produces else None  # noqa
+                }
+            }
+
+            for (status_code, routefield) in route_spec.response:
+                responses["{}" . format(status_code)] = {
+                    "schema": serialize_schema(routefield.field),
+                    "description": routefield.description
+                }
 
             endpoint = remove_nulls({
                 'operationId': route_spec.operation or route.name,
@@ -152,20 +181,14 @@ def build_spec(app, loop):
                 'produces': produces_content_types,
                 'tags': route_spec.tags or None,
                 'parameters': route_parameters,
-                'responses': {
-                    "200": {
-                        "description": None,
-                        "examples": None,
-                        "schema": serialize_schema(route_spec.produces) if route_spec.produces else None
-                    }
-                },
+                'responses': responses
             })
 
             methods[_method.lower()] = endpoint
 
         uri_parsed = uri
         for parameter in route.parameters:
-            uri_parsed = re.sub('<'+parameter.name+'.*?>', '{'+parameter.name+'}', uri_parsed)
+            uri_parsed = re.sub('<' + parameter.name + '.*?>', '{' + parameter.name + '}', uri_parsed)  # noqa
 
         paths[uri_parsed] = methods
 
@@ -173,7 +196,7 @@ def build_spec(app, loop):
     # Definitions
     # --------------------------------------------------------------- #
 
-    _spec['definitions'] = {obj.object_name: definition for cls, (obj, definition) in definitions.items()}
+    _spec['definitions'] = {obj.object_name: definition for cls, (obj, definition) in definitions.items()}  # noqa
 
     # --------------------------------------------------------------- #
     # Tags
@@ -182,8 +205,8 @@ def build_spec(app, loop):
     # TODO: figure out how to get descriptions in these
     tags = {}
     for route_spec in route_specs.values():
-        if route_spec.blueprint and route_spec.blueprint.name in ('swagger', 'openapi'):
-                # TODO: add static flag in sanic routes
+        if route_spec.blueprint and route_spec.blueprint.name in ('swagger', 'openapi'):  # noqa
+            # TODO: add static flag in sanic routes
             continue
         for tag in route_spec.tags:
             tags[tag] = True
