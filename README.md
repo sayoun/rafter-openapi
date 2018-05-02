@@ -103,6 +103,27 @@ async def store_garage(request):
     return json(request.json)
 ```
 
+### Easily use a Schematics model through convertion
+
+```python
+from schematics import Model, types
+from rafter.contrib.schematics import model_node
+
+class CarSchema(Model):
+    @model_node()
+    class body(Model):
+        make = types.StringType(required=True)
+        model = types.StringType(required=True)
+        year = types.IntType(required=True)
+
+@app.post("/store/car")
+@doc.summary("Stores a car object")
+@doc.consumes(doc.from_model(CarSchema), content_type="application/json", location="body")
+async def store_car(request):
+    store_car(request.json)
+    return json(request.json)
+```
+
 ### Configure all the things
 
 ```python
