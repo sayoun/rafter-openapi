@@ -103,7 +103,7 @@ async def store_garage(request):
     return json(request.json)
 ```
 
-### Easily use a Schematics model through convertion
+### Easily use a Schematics model through conversion
 
 ```python
 from schematics import Model, types
