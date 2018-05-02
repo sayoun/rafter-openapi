@@ -1,6 +1,9 @@
 from collections import defaultdict
 from datetime import date, datetime
 
+from schematics import types
+from schematics.types.compound import ModelType, ListType
+
 
 class Field:
     def __init__(self, description=None, required=None, name=None,
@@ -311,3 +314,47 @@ def tag(name):
         route_specs[func].tags.append(name)
         return func
     return inner
+
+
+SCHEMATIC_TYPE_TO_DOC_TYPE = {
+    types.NumberType: Float,
+    types.IntType: Integer,
+    types.LongType: Integer,
+    types.FloatType: Float,
+    types.DecimalType: Float,
+    types.BooleanType: Boolean,
+    types.StringType: String,
+}
+
+
+def parse_fields(model):
+    properties = {}
+    # Loop over each field and either evict it or convert it
+    for field_name, field_instance in model._fields.items():
+        # Break 3-tuple out
+        # print(field_name, field_instance)
+        serialized_name = getattr(field_instance, 'serialized_name', None) or field_name  # noqa
+
+        if isinstance(field_instance, ModelType):
+            properties[serialized_name] = model2json(field_instance.model_class)  # noqa
+
+        elif isinstance(field_instance, ListType):
+            properties[serialized_name] = model2json(field_instance.model_class, 'array')  # noqa
+
+        # Convert field as single model
+        elif isinstance(field_instance, types.BaseType):
+            doctype = SCHEMATIC_TYPE_TO_DOC_TYPE.get(field_instance.__class__, String)  # noqa
+            is_req = getattr(field_instance, 'required', False)
+            properties[serialized_name] = doctype(required=is_req)
+
+    return properties
+
+
+def model2json(model, _type='object'):
+    return parse_fields(model)
+
+
+def from_model(model):
+    """Returns representation of a schematics model as a jsonBody object."""
+    ret = model2json(model)
+    return JsonBody(ret['body'])
