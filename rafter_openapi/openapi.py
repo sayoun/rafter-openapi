@@ -169,9 +169,13 @@ def build_spec(app, loop):
 
             for (status_code, routefield) in route_spec.response:
                 responses["{}" . format(status_code)] = {
-                    "schema": serialize_schema(routefield.field),
                     "description": routefield.description
                 }
+                spec = serialize_schema(routefield.field)
+                if 'schema' in spec:
+                    responses["{}" . format(status_code)]['schema'] = spec['schema'] # noqa
+                else:
+                    responses["{}" . format(status_code)]['schema'] = spec
 
             endpoint = remove_nulls({
                 'operationId': route_spec.operation or route.name,
