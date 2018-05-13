@@ -163,12 +163,12 @@ def build_spec(app, loop):
                     del route_param['$ref']
                     route_parameters.append(route_param)
 
-            responses = {
-                "200": {
+            responses = {}
+            if route_spec.produces:
+                responses["200"] = {
                     "schema": serialize_schema(route_spec.produces.field) if route_spec.produces else None,  # noqa
                     "description": route_spec.produces.description if route_spec.produces else None  # noqa
                 }
-            }
 
             for (status_code, routefield) in route_spec.response:
                 responses["{}" . format(status_code)] = {
