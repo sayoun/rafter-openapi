@@ -145,12 +145,15 @@ def build_spec(app, loop):
                         }
                         if 'required' not in route_param:
                             route_param['required'] = consumer.required
+                        if consumer.description:
+                            route_param['description'] = consumer.description
                         route_parameters.append(route_param)
                 else:
                     route_param = {
                         **spec,
                         'required': consumer.required,
                         'in': consumer.location,
+                        'description': consumer.description,
                         'name': consumer.field.name if hasattr(consumer.field, 'name') else 'body'  # noqa
                     }
                     route_parameters.append(route_param)
