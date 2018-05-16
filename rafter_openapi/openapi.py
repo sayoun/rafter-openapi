@@ -62,7 +62,7 @@ def build_spec(app, loop):
     for blueprint in app.blueprints.values():
         if hasattr(blueprint, 'resources'):
             for route, _ in blueprint.resources:
-                route_spec = route_specs[route.handler]
+                route_spec = route_specs[route.handler.__qualname__]
                 route_spec.blueprint = blueprint
                 if not route_spec.tags:
                     route_spec.tags.append(blueprint.name)
@@ -102,7 +102,7 @@ def build_spec(app, loop):
                 'DELETE': lambda: _handler.view_class.delete
             }
 
-            route_spec = route_specs.get_key(_handler)
+            route_spec = route_specs.get(_handler)
             if not route_spec:
                 route_spec = route_specs.get(_handler.__qualname__)
             if not route_spec:

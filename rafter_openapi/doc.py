@@ -243,30 +243,7 @@ class RouteField(object):
         self.description = description
 
 
-class CustomDefaultDict(defaultdict):
-
-    def get_key(self, key):
-        """Get method which use qualname to retrieve matching entry.
-
-        Functions as keys are not found because each Rafter filter will alter
-        the function id, so we use the qualname to found the function which
-        match the same qualname.
-
-        This will not work if 2 functions have the same name in the codebase
-        but it's the best we can do for now.
-        """
-        ret = None
-        qkey = key.__qualname__
-        ret = self.get(qkey)
-        if not ret:
-            # check all entries if qualname match
-            for k in self:
-                if k.__qualname__ == qkey:
-                    return self.get(k)
-        return
-
-
-route_specs = CustomDefaultDict(RouteSpec)
+route_specs = defaultdict(RouteSpec)
 
 
 def route(summary=None, description=None, consumes=None, produces=None,
