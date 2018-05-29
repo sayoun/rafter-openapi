@@ -4,6 +4,7 @@ from itertools import repeat
 from sanic.blueprints import Blueprint
 from sanic.response import json
 from sanic.views import CompositionView
+from sanic.constants import HTTP_METHODS
 
 from .doc import route_specs, RouteSpec, serialize_schema, definitions
 
@@ -60,19 +61,43 @@ def build_spec(app, loop):
     # --------------------------------------------------------------- #
 
     for blueprint in app.blueprints.values():
+        # rafter route are called resources
         if hasattr(blueprint, 'resources'):
             for route, _ in blueprint.resources:
-                route_spec = route_specs[route.handler.__qualname__]
-                route_spec.blueprint = blueprint
-                if not route_spec.tags:
-                    route_spec.tags.append(blueprint.name)
+                if hasattr(route.handler, 'view_class'):
+                    # class based view
+                    view = route.handler.view_class
+                    for http_method in HTTP_METHODS:
+                        _handler = getattr(view, http_method.lower(), None)
+                        if _handler:
+                            route_spec = route_specs[_handler]
+                            route_spec.blueprint = blueprint
+                            if not route_spec.tags:
+                                route_spec.tags.append(blueprint.name)
+                else:
+                    route_spec = route_specs[route.handler]
+                    route_spec.blueprint = blueprint
+                    if not route_spec.tags:
+                        route_spec.tags.append(blueprint.name)
 
+        # sanic route are called routes
         if hasattr(blueprint, 'routes'):
             for route in blueprint.routes:
-                route_spec = route_specs[route.handler]
-                route_spec.blueprint = blueprint
-                if not route_spec.tags:
-                    route_spec.tags.append(blueprint.name)
+                if hasattr(route.handler, 'view_class'):
+                    # class based view
+                    view = route.handler.view_class
+                    for http_method in HTTP_METHODS:
+                        _handler = getattr(view, http_method.lower(), None)
+                        if _handler:
+                            route_spec = route_specs[_handler]
+                            route_spec.blueprint = blueprint
+                            if not route_spec.tags:
+                                route_spec.tags.append(blueprint.name)
+                else:
+                    route_spec = route_specs[route.handler]
+                    route_spec.blueprint = blueprint
+                    if not route_spec.tags:
+                        route_spec.tags.append(blueprint.name)
 
     paths = {}
     for uri, route in app.router.routes_all.items():
@@ -101,13 +126,16 @@ def build_spec(app, loop):
                 'PATCH': lambda: _handler.view_class.patch,
                 'DELETE': lambda: _handler.view_class.delete
             }
-
-            route_spec = route_specs.get(_handler)
+            if hasattr(_handler, 'view_class'):
+                view_handler = getattr(_handler.view_class, _method.lower())
+                route_spec = route_specs.get(view_handler)
+            else:
+                route_spec = route_specs.get_key(_handler)
             if not route_spec:
                 route_spec = route_specs.get(_handler.__qualname__)
             if not route_spec:
                 route_spec = RouteSpec()
-            if 'view_class' in dir(_handler):
+            if hasattr(_handler, 'view_class'):
                 view_route = route_specs.get(_methods.get(_method)())
                 if view_route:
                     for k in view_route.__dict__.keys():
