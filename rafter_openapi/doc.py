@@ -379,7 +379,12 @@ def parse_fields(model):
             properties[serialized_name] = model2json(field_instance.model_class)  # noqa
 
         elif isinstance(field_instance, ListType):
-            properties[serialized_name] = model2json(field_instance.model_class, 'array')  # noqa
+            if hasattr(field_instance, 'model_class'):
+                properties[serialized_name] = model2json(field_instance.model_class, 'array')  # noqa
+            else:
+                is_req = getattr(field_instance, 'required', False)
+                doctype = SCHEMATIC_TYPE_TO_DOC_TYPE.get(field_instance.__class__, String)  # noqa
+                properties[serialized_name] = List(doctype, required=is_req)
 
         # Convert field as single model
         elif isinstance(field_instance, types.BaseType):
